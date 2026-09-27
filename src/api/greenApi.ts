@@ -147,7 +147,7 @@ export function toChatId(value: string): string {
 
 /**
  * Человекочитаемое имя чата.
- * Личные чаты приходят как 79001234567@c.us, групповые — как -1001681300319.
+ * Личные чаты приходят как 79001234567@c.us, групповые — как -1001234567890.
  */
 export function formatChatId(chatId: string): string {
   return chatId.endsWith('@c.us') ? `+${chatId.split('@')[0]}` : chatId

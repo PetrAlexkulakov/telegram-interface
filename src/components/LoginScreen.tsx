@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { FormEvent } from 'react'
 import {
   DEFAULT_API_URL,
   enableMessageWebhooks,
@@ -6,8 +7,13 @@ import {
   getStateInstance,
   hasMessageWebhooks
 } from '../api/greenApi'
+import type { Credentials } from '../types'
 
-export default function LoginScreen({ onLogin }) {
+interface LoginScreenProps {
+  onLogin: (credentials: Credentials) => void
+}
+
+export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [idInstance, setIdInstance] = useState('')
   const [apiTokenInstance, setApiTokenInstance] = useState('')
   const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL)
@@ -15,12 +21,12 @@ export default function LoginScreen({ onLogin }) {
   const [error, setError] = useState('')
   const [checking, setChecking] = useState(false)
   // Учётные данные верны, но у инстанса выключены вебхуки — без них приём не работает.
-  const [needsWebhooks, setNeedsWebhooks] = useState(null)
+  const [needsWebhooks, setNeedsWebhooks] = useState<Credentials | null>(null)
 
-  async function handleSubmit(event) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const credentials = {
+    const credentials: Credentials = {
       idInstance: idInstance.trim(),
       apiTokenInstance: apiTokenInstance.trim(),
       apiUrl: apiUrl.trim() || DEFAULT_API_URL
@@ -52,13 +58,15 @@ export default function LoginScreen({ onLogin }) {
 
       onLogin(credentials)
     } catch (requestError) {
-      setError(requestError.message)
+      setError(requestError instanceof Error ? requestError.message : String(requestError))
     } finally {
       setChecking(false)
     }
   }
 
   async function handleEnableWebhooks() {
+    if (!needsWebhooks) return
+
     setChecking(true)
     setError('')
 
@@ -66,7 +74,7 @@ export default function LoginScreen({ onLogin }) {
       await enableMessageWebhooks(needsWebhooks)
       onLogin(needsWebhooks)
     } catch (requestError) {
-      setError(requestError.message)
+      setError(requestError instanceof Error ? requestError.message : String(requestError))
     } finally {
       setChecking(false)
     }

@@ -1,9 +1,14 @@
 import { useState } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 
-export default function MessageInput({ onSend }) {
+interface MessageInputProps {
+  onSend: (text: string) => void
+}
+
+export default function MessageInput({ onSend }: MessageInputProps) {
   const [text, setText] = useState('')
 
-  function handleSubmit(event) {
+  function handleSubmit(event: FormEvent | KeyboardEvent) {
     event.preventDefault()
 
     const value = text.trim()
@@ -13,7 +18,7 @@ export default function MessageInput({ onSend }) {
     setText('')
   }
 
-  function handleKeyDown(event) {
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
       handleSubmit(event)
     }

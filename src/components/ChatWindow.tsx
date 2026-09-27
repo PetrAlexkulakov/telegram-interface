@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { avatarLabel } from '../api/greenApi'
 import MessageInput from './MessageInput'
+import type { Chat, MessageStatus } from '../types'
 
-const STATUS_LABELS = {
+const STATUS_LABELS: Partial<Record<MessageStatus, string>> = {
   sending: 'отправляется',
   sent: 'отправлено',
   delivered: 'доставлено',
@@ -10,15 +11,20 @@ const STATUS_LABELS = {
   error: 'ошибка'
 }
 
-function formatTime(timestamp) {
+function formatTime(timestamp: number): string {
   return new Date(timestamp).toLocaleTimeString('ru-RU', {
     hour: '2-digit',
     minute: '2-digit'
   })
 }
 
-export default function ChatWindow({ chat, onSend }) {
-  const messagesRef = useRef(null)
+interface ChatWindowProps {
+  chat: Chat | null
+  onSend: (text: string) => void
+}
+
+export default function ChatWindow({ chat, onSend }: ChatWindowProps) {
+  const messagesRef = useRef<HTMLDivElement>(null)
 
   // Скроллим саму ленту, а не страницу — иначе вьюпорт уезжает вместе с сайдбаром.
   useEffect(() => {

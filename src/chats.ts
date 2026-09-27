@@ -7,10 +7,12 @@
  * локальный чат приходится склеивать с каноническим по idMessage.
  */
 
+import type { Chat, Message } from './types'
+
 /** Сообщения двух чатов без дублей по id, в хронологическом порядке. */
-function mergeMessages(first, second) {
-  const seen = new Set()
-  const messages = []
+function mergeMessages(first: Message[], second: Message[]): Message[] {
+  const seen = new Set<string>()
+  const messages: Message[] = []
 
   for (const message of [...first, ...second]) {
     if (seen.has(message.id)) continue
@@ -22,7 +24,12 @@ function mergeMessages(first, second) {
 }
 
 /** Добавляет сообщение, создавая чат при необходимости. Дубли по id отбрасываются. */
-export function addMessage(chats, chatId, message, title) {
+export function addMessage(
+  chats: Chat[],
+  chatId: string,
+  message: Message,
+  title?: string
+): Chat[] {
   const existing = chats.find((chat) => chat.chatId === chatId)
 
   if (!existing) {
@@ -35,7 +42,7 @@ export function addMessage(chats, chatId, message, title) {
       : chats
   }
 
-  const updated = {
+  const updated: Chat = {
     ...existing,
     title: title || existing.title,
     messages: [...existing.messages, message]
@@ -45,7 +52,12 @@ export function addMessage(chats, chatId, message, title) {
 }
 
 /** Точечно меняет поля сообщения. */
-export function updateMessage(chats, chatId, messageId, patch) {
+export function updateMessage(
+  chats: Chat[],
+  chatId: string,
+  messageId: string,
+  patch: Partial<Message>
+): Chat[] {
   return chats.map((chat) =>
     chat.chatId === chatId
       ? {
@@ -59,7 +71,12 @@ export function updateMessage(chats, chatId, messageId, patch) {
 }
 
 /** Переносит сообщения локального чата в чат с каноническим chatId. */
-export function mergeChats(chats, sourceChatId, targetChatId, title) {
+export function mergeChats(
+  chats: Chat[],
+  sourceChatId: string,
+  targetChatId: string,
+  title?: string
+): Chat[] {
   if (sourceChatId === targetChatId) return chats
 
   const source = chats.find((chat) => chat.chatId === sourceChatId)
@@ -67,7 +84,7 @@ export function mergeChats(chats, sourceChatId, targetChatId, title) {
 
   const target = chats.find((chat) => chat.chatId === targetChatId)
 
-  const merged = {
+  const merged: Chat = {
     chatId: targetChatId,
     title: title || target?.title || source.title,
     messages: mergeMessages(target?.messages ?? [], source.messages)
@@ -81,7 +98,11 @@ export function mergeChats(chats, sourceChatId, targetChatId, title) {
 }
 
 /** Чат, в котором уже лежит сообщение с таким id (кроме исключённого). */
-export function findChatByMessageId(chats, messageId, exceptChatId) {
+export function findChatByMessageId(
+  chats: Chat[],
+  messageId: string,
+  exceptChatId: string
+): Chat | undefined {
   return chats.find(
     (chat) => chat.chatId !== exceptChatId && chat.messages.some((m) => m.id === messageId)
   )

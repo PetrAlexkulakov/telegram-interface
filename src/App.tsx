@@ -5,27 +5,28 @@ import ChatWindow from './components/ChatWindow'
 import { useNotifications } from './hooks/useNotifications'
 import { extractText, formatChatId, sendMessage, toChatId } from './api/greenApi'
 import { addMessage, findChatByMessageId, mergeChats, updateMessage } from './chats'
+import type { Chat, Credentials, Message, NotificationBody } from './types'
 
 const STORAGE_KEY = 'green-api-credentials'
 
-function loadCredentials() {
+function loadCredentials(): Credentials | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : null
+    return raw ? (JSON.parse(raw) as Credentials) : null
   } catch {
     return null
   }
 }
 
 export default function App() {
-  const [credentials, setCredentials] = useState(loadCredentials)
-  const [chats, setChats] = useState([])
-  const [selectedChatId, setSelectedChatId] = useState(null)
+  const [credentials, setCredentials] = useState<Credentials | null>(loadCredentials)
+  const [chats, setChats] = useState<Chat[]>([])
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
 
   // chatId, по которому чат создали вручную → канонический chatId из вебхука.
-  const aliasesRef = useRef(new Map())
+  const aliasesRef = useRef(new Map<string, string>())
   // idMessage → chatId, в который отправляли. Нужен, чтобы опознать свой же вебхук.
-  const sentToRef = useRef(new Map())
+  const sentToRef = useRef(new Map<string, string>())
 
   useEffect(() => {
     if (credentials) localStorage.setItem(STORAGE_KEY, JSON.stringify(credentials))
@@ -33,30 +34,30 @@ export default function App() {
   }, [credentials])
 
   /** Локальный chatId → тот, под которым чат живёт сейчас. */
-  const resolveChatId = useCallback((chatId) => {
-    const seen = new Set()
-    let current = chatId
+  const resolveChatId = useCallback((chatId: string | null): string => {
+    const seen = new Set<string>()
+    let current = chatId ?? ''
 
     while (current && aliasesRef.current.has(current) && !seen.has(current)) {
       seen.add(current)
-      current = aliasesRef.current.get(current)
+      current = aliasesRef.current.get(current) as string
     }
 
     return current
   }, [])
 
   const handleNotification = useCallback(
-    (body) => {
+    (body: NotificationBody) => {
       if (!body) return
 
-      const { typeWebhook: type } = body
+      const { typeWebhook: type, idMessage } = body
+      if (!idMessage) return
 
       if (type === 'outgoingMessageStatus') {
-        if (body.chatId) {
+        if (body.chatId && body.status) {
+          const status = body.status
           setChats((previous) =>
-            updateMessage(previous, resolveChatId(body.chatId), body.idMessage, {
-              status: body.status
-            })
+            updateMessage(previous, resolveChatId(body.chatId as string), idMessage, { status })
           )
         }
         return
@@ -72,11 +73,11 @@ export default function App() {
       const { chatId, chatName, senderName, chatType } = body.senderData ?? {}
       if (!chatId) return
 
-      const isGroup = chatType && chatType !== 'user'
+      const isGroup = Boolean(chatType && chatType !== 'user')
       const title = chatName || senderName || formatChatId(chatId)
 
-      const message = {
-        id: body.idMessage,
+      const message: Message = {
+        id: idMessage,
         text,
         outgoing: isOutgoing,
         author: isIncoming && isGroup ? senderName : undefined,
@@ -85,7 +86,7 @@ export default function App() {
       }
 
       // Свой же вебхук пришёл с каноническим chatId — склеиваем с локальным чатом.
-      const sentTo = sentToRef.current.get(body.idMessage)
+      const sentTo = sentToRef.current.get(idMessage)
       if (sentTo && sentTo !== chatId) aliasesRef.current.set(sentTo, chatId)
 
       setChats((previous) => {
@@ -98,7 +99,7 @@ export default function App() {
 
   const connection = useNotifications(credentials, handleNotification)
 
-  function handleCreateChat(phone) {
+  function handleCreateChat(phone: string) {
     const chatId = resolveChatId(toChatId(phone))
     if (!chatId) return
 
@@ -110,7 +111,9 @@ export default function App() {
     setSelectedChatId(chatId)
   }
 
-  async function handleSend(text) {
+  async function handleSend(text: string) {
+    if (!credentials) return
+
     const chatId = resolveChatId(selectedChatId)
     const localId = `local-${Date.now()}`
 
@@ -124,13 +127,14 @@ export default function App() {
       })
     )
 
-    let idMessage
+    let idMessage: string | undefined
     try {
       const response = await sendMessage(credentials, chatId, text)
       idMessage = response?.idMessage
     } catch (error) {
+      const description = error instanceof Error ? error.message : String(error)
       setChats((previous) =>
-        updateMessage(previous, chatId, localId, { status: 'error', error: error.message })
+        updateMessage(previous, chatId, localId, { status: 'error', error: description })
       )
       return
     }

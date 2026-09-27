@@ -16,7 +16,11 @@ npm run dev
 
 Приложение откроется на http://localhost:5173
 
-Сборка production-версии: `npm run build`, локальный просмотр сборки: `npm run preview`.
+Сборка production-версии: `npm run build` (сначала проверка типов, затем Vite),
+только проверка типов: `npm run typecheck`, просмотр сборки: `npm run preview`.
+
+Стек: React 19 + TypeScript (strict) + Vite, без дополнительных библиотек —
+запросы к GREEN-API идут через `fetch`.
 
 ## Как пользоваться
 
@@ -59,14 +63,16 @@ npm run dev
 
 ```
 src/
-├── api/greenApi.js            — HTTP-клиент GREEN-API и хелперы (chatId, разбор messageData)
-├── hooks/useNotifications.js  — цикл опроса ReceiveNotification / DeleteNotification
+├── types.ts                   — доменные типы и формы ответов GREEN-API
+├── api/greenApi.ts            — HTTP-клиент GREEN-API и хелперы (chatId, разбор messageData)
+├── chats.ts                   — чистые операции над списком чатов, включая склейку по idMessage
+├── hooks/useNotifications.ts  — цикл опроса ReceiveNotification / DeleteNotification
 ├── components/
-│   ├── LoginScreen.jsx        — ввод idInstance / apiTokenInstance
-│   ├── Sidebar.jsx            — список чатов и создание нового чата по номеру
-│   ├── ChatWindow.jsx         — лента сообщений
-│   └── MessageInput.jsx       — поле ввода
-├── App.jsx                    — состояние чатов, отправка, обработка уведомлений
+│   ├── LoginScreen.tsx        — ввод idInstance / apiTokenInstance
+│   ├── Sidebar.tsx            — список чатов и создание нового чата по номеру
+│   ├── ChatWindow.tsx         — лента сообщений
+│   └── MessageInput.tsx       — поле ввода
+├── App.tsx                    — состояние чатов, отправка, обработка уведомлений
 └── styles.css
 ```
 

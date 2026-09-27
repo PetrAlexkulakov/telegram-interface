@@ -1,10 +1,23 @@
 import { useState } from 'react'
+import type { FormEvent } from 'react'
 import { avatarLabel } from '../api/greenApi'
+import type { Chat, ConnectionStatus } from '../types'
 
-const CONNECTION_LABELS = {
+const CONNECTION_LABELS: Record<ConnectionStatus, string> = {
   connecting: 'подключение…',
   online: 'на связи',
   error: 'нет связи'
+}
+
+interface SidebarProps {
+  chats: Chat[]
+  activeChatId: string | null
+  connection: ConnectionStatus
+  connectionError: string
+  idInstance: string
+  onSelectChat: (chatId: string) => void
+  onCreateChat: (phone: string) => void
+  onLogout: () => void
 }
 
 export default function Sidebar({
@@ -16,10 +29,10 @@ export default function Sidebar({
   onSelectChat,
   onCreateChat,
   onLogout
-}) {
+}: SidebarProps) {
   const [phone, setPhone] = useState('')
 
-  function handleSubmit(event) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!phone.trim()) return
 

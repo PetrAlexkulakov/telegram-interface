@@ -4,17 +4,40 @@
  * Получение  — методы ReceiveNotification / DeleteNotification (технология HTTP API)
  */
 
+import type {
+  Credentials,
+  MessageData,
+  Notification,
+  SendMessageResponse,
+  SettingsResponse,
+  StateInstanceResponse
+} from '../types'
+
 export const DEFAULT_API_URL = 'https://api.green-api.com'
 
 /** Секунды, которые сервер держит открытым запрос ReceiveNotification (long polling). */
 const RECEIVE_TIMEOUT = 10
 
-function buildUrl({ apiUrl, idInstance, apiTokenInstance }, method, tail = '') {
+interface RequestOptions {
+  method?: string
+  body?: unknown
+  signal?: AbortSignal
+  /** Статусы, которые означают «данных нет», а не ошибку. */
+  emptyStatuses?: number[]
+}
+
+function buildUrl(
+  { apiUrl, idInstance, apiTokenInstance }: Credentials,
+  method: string,
+  tail = ''
+): string {
   const base = (apiUrl || DEFAULT_API_URL).replace(/\/+$/, '')
   return `${base}/waInstance${idInstance}/${method}/${apiTokenInstance}${tail}`
 }
 
-async function request(url, { method = 'GET', body, signal, emptyStatuses = [] } = {}) {
+async function request<T>(url: string, options: RequestOptions = {}): Promise<T | null> {
+  const { method = 'GET', body, signal, emptyStatuses = [] } = options
+
   const response = await fetch(url, {
     method,
     signal,
@@ -34,20 +57,20 @@ async function request(url, { method = 'GET', body, signal, emptyStatuses = [] }
   if (!text) return null
 
   try {
-    return JSON.parse(text)
+    return JSON.parse(text) as T
   } catch {
     throw new Error(`Не удалось разобрать ответ GREEN-API: ${text}`)
   }
 }
 
 /** Состояние инстанса — используется для проверки учётных данных при входе. */
-export function getStateInstance(credentials, signal) {
-  return request(buildUrl(credentials, 'getStateInstance'), { signal })
+export function getStateInstance(credentials: Credentials, signal?: AbortSignal) {
+  return request<StateInstanceResponse>(buildUrl(credentials, 'getStateInstance'), { signal })
 }
 
 /** Настройки инстанса — нужны, чтобы проверить, включён ли приём уведомлений. */
-export function getSettings(credentials, signal) {
-  return request(buildUrl(credentials, 'getSettings'), { signal })
+export function getSettings(credentials: Credentials, signal?: AbortSignal) {
+  return request<SettingsResponse>(buildUrl(credentials, 'getSettings'), { signal })
 }
 
 /**
@@ -55,8 +78,8 @@ export function getSettings(credentials, signal) {
  * Без них ReceiveNotification не вернёт ни одного сообщения.
  * После вызова инстанс перезагружается примерно на минуту.
  */
-export function enableMessageWebhooks(credentials, signal) {
-  return request(buildUrl(credentials, 'setSettings'), {
+export function enableMessageWebhooks(credentials: Credentials, signal?: AbortSignal) {
+  return request<{ saveSettings: boolean }>(buildUrl(credentials, 'setSettings'), {
     method: 'POST',
     body: {
       incomingWebhook: 'yes',
@@ -69,13 +92,18 @@ export function enableMessageWebhooks(credentials, signal) {
 }
 
 /** Приём сообщений работает только при включённых вебхуках. */
-export function hasMessageWebhooks(settings) {
+export function hasMessageWebhooks(settings: SettingsResponse | null): boolean {
   return settings?.incomingWebhook === 'yes' && settings?.outgoingAPIMessageWebhook === 'yes'
 }
 
 /** Отправка текстового сообщения: POST /waInstance{id}/sendMessage/{token} */
-export function sendMessage(credentials, chatId, message, signal) {
-  return request(buildUrl(credentials, 'sendMessage'), {
+export function sendMessage(
+  credentials: Credentials,
+  chatId: string,
+  message: string,
+  signal?: AbortSignal
+) {
+  return request<SendMessageResponse>(buildUrl(credentials, 'sendMessage'), {
     method: 'POST',
     body: { chatId, message },
     signal
@@ -88,14 +116,18 @@ export function sendMessage(credentials, chatId, message, signal) {
  * Пустое ожидание GREEN-API отдаёт как 200 с пустым телом либо как 408 —
  * и то и другое означает «сообщений нет», а не обрыв связи.
  */
-export function receiveNotification(credentials, signal) {
+export function receiveNotification(credentials: Credentials, signal?: AbortSignal) {
   const url = buildUrl(credentials, 'receiveNotification', `?receiveTimeout=${RECEIVE_TIMEOUT}`)
-  return request(url, { signal, emptyStatuses: [408] })
+  return request<Notification>(url, { signal, emptyStatuses: [408] })
 }
 
 /** Подтверждение обработки уведомления — иначе оно придёт повторно. */
-export function deleteNotification(credentials, receiptId, signal) {
-  return request(buildUrl(credentials, 'deleteNotification', `/${receiptId}`), {
+export function deleteNotification(
+  credentials: Credentials,
+  receiptId: number,
+  signal?: AbortSignal
+) {
+  return request<{ result: boolean }>(buildUrl(credentials, 'deleteNotification', `/${receiptId}`), {
     method: 'DELETE',
     signal
   })
@@ -105,7 +137,7 @@ export function deleteNotification(credentials, receiptId, signal) {
  * Приводит введённый номер телефона к chatId в формате GREEN-API.
  * Можно ввести как номер (+7 900 123-45-67), так и готовый chatId (79001234567@c.us).
  */
-export function toChatId(value) {
+export function toChatId(value: string): string {
   const trimmed = value.trim()
   if (trimmed.includes('@')) return trimmed
 
@@ -117,18 +149,18 @@ export function toChatId(value) {
  * Человекочитаемое имя чата.
  * Личные чаты приходят как 79001234567@c.us, групповые — как -1001681300319.
  */
-export function formatChatId(chatId) {
+export function formatChatId(chatId: string): string {
   return chatId.endsWith('@c.us') ? `+${chatId.split('@')[0]}` : chatId
 }
 
 /** Две буквы для аватара чата. */
-export function avatarLabel(title) {
+export function avatarLabel(title: string): string {
   const clean = title.replace(/^\+/, '').trim()
   return /^\d/.test(clean) ? clean.slice(-2) : clean.slice(0, 2).toUpperCase()
 }
 
 /** Достаёт текст из messageData уведомления. null — если сообщение не текстовое. */
-export function extractText(messageData) {
+export function extractText(messageData: MessageData | undefined): string | null {
   if (!messageData) return null
 
   switch (messageData.typeMessage) {

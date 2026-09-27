@@ -18,10 +18,12 @@ function formatTime(timestamp) {
 }
 
 export default function ChatWindow({ chat, onSend }) {
-  const bottomRef = useRef(null)
+  const messagesRef = useRef(null)
 
+  // Скроллим саму ленту, а не страницу — иначе вьюпорт уезжает вместе с сайдбаром.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: 'end' })
+    const node = messagesRef.current
+    if (node) node.scrollTop = node.scrollHeight
   }, [chat?.messages.length, chat?.chatId])
 
   if (!chat) {
@@ -44,7 +46,7 @@ export default function ChatWindow({ chat, onSend }) {
         </div>
       </header>
 
-      <div className="messages">
+      <div className="messages" ref={messagesRef}>
         {chat.messages.length === 0 && (
           <p className="messages__empty">Сообщений пока нет — напишите первым</p>
         )}
@@ -69,8 +71,6 @@ export default function ChatWindow({ chat, onSend }) {
             </span>
           </div>
         ))}
-
-        <div ref={bottomRef} />
       </div>
 
       <MessageInput onSend={onSend} />

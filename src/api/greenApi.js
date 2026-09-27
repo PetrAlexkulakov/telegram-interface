@@ -14,13 +14,16 @@ function buildUrl({ apiUrl, idInstance, apiTokenInstance }, method, tail = '') {
   return `${base}/waInstance${idInstance}/${method}/${apiTokenInstance}${tail}`
 }
 
-async function request(url, { method = 'GET', body, signal } = {}) {
+async function request(url, { method = 'GET', body, signal, emptyStatuses = [] } = {}) {
   const response = await fetch(url, {
     method,
     signal,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined
   })
+
+  // Для long polling часть статусов — это не ошибка, а «ничего не пришло».
+  if (emptyStatuses.includes(response.status)) return null
 
   const text = await response.text()
 
@@ -82,10 +85,12 @@ export function sendMessage(credentials, chatId, message, signal) {
 /**
  * Получение входящего уведомления.
  * Возвращает { receiptId, body } либо null, если за время ожидания ничего не пришло.
+ * Пустое ожидание GREEN-API отдаёт как 200 с пустым телом либо как 408 —
+ * и то и другое означает «сообщений нет», а не обрыв связи.
  */
 export function receiveNotification(credentials, signal) {
   const url = buildUrl(credentials, 'receiveNotification', `?receiveTimeout=${RECEIVE_TIMEOUT}`)
-  return request(url, { signal })
+  return request(url, { signal, emptyStatuses: [408] })
 }
 
 /** Подтверждение обработки уведомления — иначе оно придёт повторно. */

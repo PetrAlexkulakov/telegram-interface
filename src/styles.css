@@ -300,7 +300,13 @@ textarea {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
-  background: #f0f2f5;
+  /* Фон как в Telegram: мягкий градиент плюс бесшовная плитка с дудлами.
+     Фон закреплён за .chat, поэтому при прокрутке ленты он остаётся на месте. */
+  background-color: #dde5ec;
+  background-image: url('./assets/chat-pattern.svg'),
+    linear-gradient(160deg, #e7edf2 0%, #dce5ec 55%, #d6e0e8 100%);
+  background-repeat: repeat, no-repeat;
+  background-size: 480px 480px, cover;
 }
 
 .chat--empty {

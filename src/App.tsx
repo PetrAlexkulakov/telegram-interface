@@ -172,7 +172,7 @@ export default function App() {
   const activeChat = chats.find((chat) => chat.chatId === activeChatId) ?? null
 
   return (
-    <div className="app">
+    <div className={`app${activeChat ? ' app--chat-open' : ''}`}>
       <Sidebar
         chats={chats}
         activeChatId={activeChatId}
@@ -183,7 +183,7 @@ export default function App() {
         onCreateChat={handleCreateChat}
         onLogout={handleLogout}
       />
-      <ChatWindow chat={activeChat} onSend={handleSend} />
+      <ChatWindow chat={activeChat} onSend={handleSend} onBack={() => setSelectedChatId(null)} />
     </div>
   )
 }

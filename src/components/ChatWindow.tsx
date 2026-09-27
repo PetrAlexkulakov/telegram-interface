@@ -21,9 +21,11 @@ function formatTime(timestamp: number): string {
 interface ChatWindowProps {
   chat: Chat | null
   onSend: (text: string) => void
+  /** Возврат к списку чатов — кнопка видна только на узких экранах. */
+  onBack: () => void
 }
 
-export default function ChatWindow({ chat, onSend }: ChatWindowProps) {
+export default function ChatWindow({ chat, onSend, onBack }: ChatWindowProps) {
   const messagesRef = useRef<HTMLDivElement>(null)
 
   // Скроллим саму ленту, а не страницу — иначе вьюпорт уезжает вместе с сайдбаром.
@@ -45,6 +47,18 @@ export default function ChatWindow({ chat, onSend }: ChatWindowProps) {
   return (
     <main className="chat">
       <header className="chat__header">
+        <button className="chat__back" type="button" onClick={onBack} aria-label="К списку чатов">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path
+              d="M15 4.5L7.5 12l7.5 7.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
         <span className="chat__avatar">{avatarLabel(chat.title)}</span>
         <div>
           <div className="chat__title">{chat.title}</div>
